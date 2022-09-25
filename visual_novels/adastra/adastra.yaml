@@ -43,6 +43,7 @@ transformations:
         source: $sources.adastra
         columns:
           line: '{{ value | trim | replace("\\", "") | replace("[mc]", "Marco") }}'
+
       # Regex replace italics and scroll-speed formatting
       - operation: modify_columns
         source: $transformations.clean_text
@@ -51,8 +52,99 @@ transformations:
 
   categorize_text:
     operations:
-      - operation: ???
-        source: $transformations.clean_text
+      # Select category
+      - operation: sql_select
+        sources:
+          - $transformations.categorize_text
+        aliases:
+          - adastra
+        sql: |
+            select
+              adastra.*,
+              
+              CASE
+                WHEN
+                  text LIKE '#%'
+                  THEN 'renpy_comment'
+                WHEN
+                  text LIKE '$%'
+                  THEN 'renpy_python'
+                WHEN
+                  text = '' OR text ~ '^(ease|hide|jump|label|menu|pause|play|queue|return|scene|scene|show|stop|window|with).*$'
+                  THEN 'renpy_keyword'
+                WHEN
+                  text ~ '^(if|else:).*$'
+                  THEN 'choice_condition'
+                WHEN
+                  text ~ '^([a-z]+) "(.*)"$'
+                  THEN 'dialogue_alias'
+                WHEN
+                  text ~ '^"(.*?)" "(.*)"$'
+                  THEN 'dialogue_name'
+                WHEN
+                  text ~ '^"(".+")"$'
+                  THEN 'dialogue_unspecified'
+                WHEN
+                  text ~ '^"(.+)"$'
+                  THEN 'dialogue_internal'
+                WHEN
+                  text ~ '^"(.+)":$'
+                  THEN 'choice_player'
+                ELSE
+                  'unknown'
+              END AS category
+          
+            FROM adastra
+
+      # Select speaker
+      - operation: sql_select
+        sources:
+          - $transformations.categorize_text
+        aliases:
+          - adastra
+        sql: |
+            select
+              adastra.*,
+              
+              CASE category
+                WHEN 'dialogue_alias'
+                  THEN regexp_match(text, '^([a-z]+) "(.*)"$')[1]
+                WHEN 'dialogue_name'
+                  THEN regexp_match(text, '^"(.*?)" "(.*)"$')[1]
+                WHEN 'dialogue_unspecified'
+                  THEN 'speaker_unspecified'
+                WHEN 'dialogue_internal'
+                  THEN 'internal_narration'
+              END AS speaker
+          
+            FROM adastra
+
+      # Select (spoken) line
+      - operation: sql_select
+        sources:
+          - $transformations.categorize_text
+        aliases:
+          - adastra
+        sql: |
+            select
+              adastra.*,
+              
+              CASE category
+                WHEN 'dialogue_alias'
+                  THEN regexp_match(text, '^([a-z]+) "(.*)"$')[2]
+                WHEN 'dialogue_name'
+                  THEN regexp_match(text, '^"(.*?)" "(.*)"$')[2]
+                WHEN 'dialogue_unspecified'
+                  THEN regexp_match(text, '^"(".+")"$')[1]
+                WHEN 'dialogue_internal'
+                  THEN regexp_match(text, '^"(.+)"$')[1]
+                WHEN 'choice_player'
+                  THEN regexp_match(text, '^"(.+)":$')[1]
+                ELSE text
+              END AS line
+          
+            FROM adastra
+
 
   add_flags:
     operations:

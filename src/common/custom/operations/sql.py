@@ -13,13 +13,10 @@ class SqlSelectOperation(Operation):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        if self.source is not None:
-            self.source_list = [self.source]  # Force `source_list` be used for simplicity.
-
-        self.allowed_configs.update(["sql", "alias_mapping"])
+        self.allowed_configs.update(["sql", "aliases"])
 
         self.sql = None
-        self.alias_mapping = None
+        self.alias_list = None
 
 
     def compile(self):
@@ -33,15 +30,25 @@ class SqlSelectOperation(Operation):
         self.error_handler.assert_key_exists_and_type_is(self.config, 'sql', str)
         self.sql = self.config['sql']
 
-        # source_mapping: REQUIRED
-        self.error_handler.assert_key_exists_and_type_is(self.config, 'alias_mapping', dict)
-        self.alias_mapping = self.config['alias_mapping']
+        # alias_list: REQUIRED
+        self.error_handler.assert_key_exists_and_type_is(self.config, 'aliases', list)
 
-        for name, alias in self.alias_mapping.items():
-            if name not in self.sources:
-                self.error_handler.throw(
-                    f"Source alias `{name}` not declared in `sources`"
-                )
+        _aliases = self.config['aliases']
+
+        if len(_aliases) != len(self.source_list):
+            self.error_handler.throw(
+                f"Number of provided sources and aliases are not equal"
+            )
+            raise
+
+        if len(set(_aliases)) != len(_aliases):
+            self.error_handler.throw(
+                "One or more provided aliases are identical"
+            )
+            raise
+
+        self.alias_list = _aliases
+
 
 
     def execute(self):
@@ -51,11 +58,10 @@ class SqlSelectOperation(Operation):
         """
         super().execute()
 
-        source_mapping = dict(zip(self.source_list, self.source_data_list))
+        alias_mapping = dict(zip(self.alias_list, self.source_data_list))
 
-        for name, _data in source_mapping.items():
-            alias = self.alias_mapping[name]
-            exec(f"{alias} = _data")
+        for _name, _data in alias_mapping.items():
+            exec(f"{_name} = _data")
 
         self.data = dd.from_pandas(
             psql.sqldf(self.sql),

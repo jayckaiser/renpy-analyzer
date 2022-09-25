@@ -20,7 +20,10 @@ transformations:
   lines_per_character:
     operations:
       - operation: sql_select
-        source: $sources.adastra
+        sources:
+          - $sources.adastra
+        aliases:
+          - adastra
         sql: |
             select
                 file, speaker,
