@@ -1,0 +1,24 @@
+{
+    "file"    : "{{file}}",
+    "line_idx":  {{line_idx}},
+    "category": "{{category}}",
+    "speaker" : "{{speaker}}",
+    "line"    : "{{line}}",
+
+    "is_renpy"   : {{is_renpy}},
+    "is_choice"  : {{is_choice}},
+    "is_read"    : {{is_read}},
+    "has_speaker": {{has_speaker}},
+    "is_branch"  : {{is_branch}},
+
+    "raw": "{{raw}}",
+
+    "sentiment"        : {{sentiment}},
+    "subjectivity"     : {{subjectivity}},
+    "sentences"        : "{{sentences}}",
+    "num_sentences"    : {{num_sentences}}1,
+    "words"            : "{{words}}",
+    "num_words"        : {{num_words}},
+    "content_words"    : "{{content_words}}",
+    "num_content_words": {{num_content_words}}
+}

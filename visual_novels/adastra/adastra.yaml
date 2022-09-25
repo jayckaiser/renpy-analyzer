@@ -1,0 +1,109 @@
+config:
+  log_level: DEBUG
+  show_stacktrace: True
+  show_graph: False
+
+
+anchors:
+  renpy_keywords: &renpy_keywords [
+    ease, hide, jump, label, menu,
+    pause, play, queue, return, scene,
+    scene, show, stop, window, with,
+  ]
+
+
+sources:
+  adastra:
+    mode: visual_novel
+    game_dir: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game
+    script_files:
+      - a1s1.rpy
+      - a1s2.rpy
+      - a1s3.rpy
+      - a1s4.rpy
+      - a1s5.rpy
+      - a1s6.rpy
+      - a1s7.rpy
+      - a2s1.rpy
+      - a2s2.rpy
+      - a2s3.rpy
+      - a3s1.rpy
+      - a3s2.rpy
+      - end_game1.rpy
+      - end_game2.rpy
+  # columns: [file_name, line_idx, line]
+
+
+transformations:
+
+  clean_text:
+    operations:
+      # Trim, remove escape characters, replace MC name
+      - operation: modify_columns
+        source: $sources.adastra
+        columns:
+          line: '{{ value | trim | replace("\\", "") | replace("[mc]", "Marco") }}'
+      # Regex replace italics and scroll-speed formatting
+      - operation: modify_columns
+        source: $transformations.clean_text
+        columns:
+          line: '{{ value | regex_replace("{/?i}", "*") | regex_replace("{cps=\d+}", "") }}'
+
+  categorize_text:
+    operations:
+      - operation: ???
+        source: $transformations.clean_text
+
+  add_flags:
+    operations:
+      - operation: add_columns
+        source: $transformations.categorize_text
+        columns:
+          is_renpy: '{{ category | match("^renpy_.*$") }}'
+          is_choice: '{{ category | match("^choice_.*$") }}'
+          is_read: '{{ category | match("^dialogue_.*$") }}'
+          has_speaker: '{{ is_read == true and category != "dialogue_unspecified" and category != "dialogue_internal" }}'
+          is_branch: '{{ (text | match("^    .*$")) and is_choice == false }}'
+
+  conform_speaker:
+    operations:
+      - operation: map_values
+        source: $transformations.add_flags
+        column: speaker
+        mapping:
+          a: amicus
+          m: marco
+          unk: ?????
+          com: computer
+          c: cassius
+          ca: cato
+          al: alexios
+          v: virginia
+          n: neferu
+          mon: monitor
+          sc: scipio
+          me: meera
+      - operation: modify_columns
+        source: $transformations.conform_speaker
+        columns:
+          speaker: '{{ value | lower }}'
+
+  add_nlp:
+    operations:
+      - operation: process_spacy
+        source: $transformations.conform_speaker
+        document_col: line
+
+
+destinations:
+  adastra:
+    source: $transformations.conform_speaker
+    template: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/templates/renpy_vn.jsont
+    extension: jsonl
+    linearize: True
+
+  adastra_nlp:
+    source: $transformations.add_nlp
+    template: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/templates/renpy_vn_nlp.jsont
+    extension: jsonl
+    linearize: True

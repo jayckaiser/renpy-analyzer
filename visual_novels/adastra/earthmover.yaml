@@ -1,0 +1,39 @@
+config:
+  log_level: DEBUG
+  show_stacktrace: True
+  show_graph: False
+
+anchors:
+  adastra_game_dir: &adastra_base_dir /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game
+
+  relplot_args: &relplot_args
+    hue: speaker
+    kind: line
+
+
+sources:
+  adastra:
+    file: /home/jayckaiser/renpy-analyzer/visual_novels/adastra/outputs/adastra.jsonl
+
+
+transformations:
+  lines_per_character:
+    operations:
+      - operation: sql_select
+        source: $sources.adastra
+        sql: |
+            select
+                file, speaker,
+                count(*) as num_lines
+            from adastra
+            group by 1, 2
+            order by 1, 2
+
+destinations:
+  lines_per_character:
+    source: $transformations.lines_per_character
+    file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/lines_per_character.png
+    relplot:
+      <<: *relplot_args
+      x: file
+      y: num_lines
