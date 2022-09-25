@@ -1,7 +1,5 @@
-import dask
+import dask.dataframe as dd
 import pandasql as psql
-
-
 
 from earthmover.nodes.operation import Operation
 
@@ -18,7 +16,7 @@ class SqlSelectOperation(Operation):
         if self.source is not None:
             self.source_list = [self.source]  # Force `source_list` be used for simplicity.
 
-        self.allowed_configs.update(["sql, alias_mapping"])
+        self.allowed_configs.update(["sql", "alias_mapping"])
 
         self.sql = None
         self.alias_mapping = None
@@ -59,7 +57,7 @@ class SqlSelectOperation(Operation):
             alias = self.alias_mapping[name]
             exec(f"{alias} = _data")
 
-        self.data = dask.from_pandas(
+        self.data = dd.from_pandas(
             psql.sqldf(self.sql),
             chunksize=self.CHUNKSIZE
         )

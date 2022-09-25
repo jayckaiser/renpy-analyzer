@@ -72,11 +72,13 @@ class Wordcloud(Destination):
         height, width, _ = image_mask.shape
 
         # Create the wordcloud shaped by the image.
+        _frequencies = self.data.compute().to_dict()
+
         wc = WordCloud(
             mask=image_mask,
             width=width, height=height,
             **self.wordcloud_kwargs
-        ).generate_from_frequencies(self.data)
+        ).generate_from_frequencies(_frequencies)
 
         # Recolor the wordcloud to match the image.
         image_colors = ImageColorGenerator(image_mask)

@@ -1,4 +1,4 @@
-import dask
+import dask.dataframe as dd
 import numpy as np
 import pandas as pd
 import sklearn
@@ -12,6 +12,8 @@ class TermFrequencyOperation(Operation):
     """
 
     """
+    CHUNKSIZE = 1024 * 1024 * 100  # 100 MB
+
     DEFAULT_COUNTVECTORIZER_KWARGS = {
 
     }
@@ -66,9 +68,12 @@ class TermFrequencyOperation(Operation):
         X = vectorizer.fit_transform(documents)
         features = vectorizer.get_feature_names_out()
 
-        self.data = dask.DataFrame(
-            X.toarray(),
-            columns=features
+        self.data = dd.from_pandas(
+            pd.DataFrame(
+                X.toarray(),
+                columns=features
+            ),
+            chunksize=self.CHUNKSIZE
         ).set_index(documents.index)
 
         # self.data['_term_frequencies'] = self.data[features].agg(lambda x: x.to_json(), axis=1)
@@ -82,6 +87,7 @@ class TfIdfFromTermFrequencyOperation(Operation):
     """
 
     """
+    CHUNKSIZE = 1024 * 1024 * 100  # 100 MB
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -166,7 +172,10 @@ class TfIdfFromTermFrequencyOperation(Operation):
             word: freq for word, freq in word_frequencies.items() if freq > 0
         }
 
-        self.data = word_frequencies
+        self.data = dd.from_pandas(
+            pd.DataFrame.from_dict(word_frequencies, columns=['word', 'frequency']),
+            chunksize=self.CHUNKSIZE
+        )
         return self.data
 
 

@@ -14,7 +14,7 @@ anchors:
 
 sources:
   adastra:
-    mode: visual_novel
+    mode: renpy_visual_novel
     game_dir: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game
     script_files:
       - a1s1.rpy
@@ -31,7 +31,7 @@ sources:
       - a3s2.rpy
       - end_game1.rpy
       - end_game2.rpy
-  # columns: [file_name, line_idx, line]
+  # columns: [file, line_idx, line]
 
 
 transformations:
@@ -90,7 +90,7 @@ transformations:
 
   add_nlp:
     operations:
-      - operation: process_spacy
+      - operation: apply_spacy
         source: $transformations.conform_speaker
         document_col: line
 
