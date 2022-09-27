@@ -1,7 +1,16 @@
 config:
+  output_dir: ./outputs
   log_level: DEBUG
   show_stacktrace: True
   show_graph: False
+
+custom_nodes:
+  sources:
+    - ['renpy_analyzer.nodes', 'SourceRA']
+  operations:
+    - ['renpy_analyzer.nodes', 'OperationRA']
+  destinations:
+    - ['renpy_analyzer.nodes', 'DestinationRA']
 
 
 anchors:
@@ -39,23 +48,23 @@ transformations:
   clean_text:
     operations:
       # Trim, remove escape characters, replace MC name
-      - operation: modify_columns
+      - operation: regexp_replace
         source: $sources.adastra
-        columns:
-          line: '{{ value | trim | replace("\\", "") | replace("[mc]", "Marco") }}'
-
-      # Regex replace italics and scroll-speed formatting
-      - operation: modify_columns
-        source: $transformations.clean_text
-        columns:
-          line: '{{ value | regex_replace("{/?i}", "*") | regex_replace("{cps=\d+}", "") }}'
+        column: line
+        replaces:
+          '^[\t]+': ''  # Trim front whitespace
+          '[\t]+$': ''  # Trim back whitespace
+          '\\': ''
+          '[mc]': 'Marco'
+          '{/?i}': '*'  # Clean italics formatting
+          '{cps=\d+}': ''  # Clean text-scroll formatting
 
   categorize_text:
     operations:
       # Select category
       - operation: sql_select
         sources:
-          - $transformations.categorize_text
+          - $transformations.clean_text
         aliases:
           - adastra
         sql: |
@@ -175,6 +184,7 @@ transformations:
           mon: monitor
           sc: scipio
           me: meera
+
       - operation: modify_columns
         source: $transformations.conform_speaker
         columns:
@@ -188,13 +198,13 @@ transformations:
 
 
 destinations:
-  adastra:
+  adastra_earthmover:
     source: $transformations.conform_speaker
     template: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/templates/renpy_vn.jsont
     extension: jsonl
     linearize: True
 
-  adastra_nlp:
+  adastra_earthmover_nlp:
     source: $transformations.add_nlp
     template: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/templates/renpy_vn_nlp.jsont
     extension: jsonl

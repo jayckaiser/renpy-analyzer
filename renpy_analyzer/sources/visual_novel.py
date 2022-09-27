@@ -32,7 +32,7 @@ class RenpyVisualNovel(Source):
 
         # game_dir: REQUIRED
         self.error_handler.assert_key_exists_and_type_is(self.config, 'game_dir', str)
-        self.game_dir = self.config['base_dir']
+        self.game_dir = self.config['game_dir']
 
         if not os.path.exists(self.game_dir) or not os.path.isdir(self.game_dir):
             self.error_handler.throw(
@@ -43,7 +43,7 @@ class RenpyVisualNovel(Source):
         self.error_handler.assert_key_exists_and_type_is(self.config, 'script_files', list)
         self.script_files = []
 
-        _script_filepaths = map(lambda x: os.path.join(self.base_dir, x), self.config['script_files'])
+        _script_filepaths = map(lambda x: os.path.join(self.game_dir, x), self.config['script_files'])
         for _file in self.iterate_files(_script_filepaths):
             self.script_files.append(_file)
 

@@ -1,13 +1,14 @@
 import collections
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import os
 import pandas as pd
 import scipy
 import seaborn as sns
 
 from earthmover.nodes.destination import Destination
 
-from src.common.custom.util import io_util
+from renpy_analyzer.util import io_util
 
 
 class Relplot(Destination):
@@ -53,12 +54,17 @@ class Relplot(Destination):
         super().compile()
 
         # file: REQUIRED
-        self.error_handler.assert_key_exists_and_type_is(self.config, 'file', str)
-        self.file = self.config['file']
+        if 'file' in self.config:
+            self.error_handler.assert_key_type_is(self.config, 'file', str)
+            self.file = self.config['file']
+        else:
+            self.file = os.path.join(self.earthmover.state_configs['output_dir'], f"{self.name}.png")
 
         # relplot: REQUIRED
         self.error_handler.assert_key_exists_and_type_is(self.config, 'relplot', dict)
         self.relplot_kwargs = self.config['relplot']
+        if '__line__' in self.relplot_kwargs:
+            del self.relplot_kwargs['__line__']
 
         self.error_handler.assert_key_exists_and_type_is(self.relplot_kwargs, 'x', str)
         self.error_handler.assert_key_exists_and_type_is(self.relplot_kwargs, 'y', str)
@@ -129,7 +135,7 @@ class Relplot(Destination):
 
         self.reset_env()  # Pyplot is memory-hungry
         self.logger.debug(
-            f"@ Relplot {self.name} written and pyplot reset."
+            f"@ Relplot {self.name} written to `{self.file}` and pyplot reset."
         )
 
 

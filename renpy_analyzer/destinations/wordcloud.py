@@ -1,11 +1,12 @@
 import numpy as np
+import os
 
 from PIL import Image
 from wordcloud import WordCloud, ImageColorGenerator
 
 from earthmover.nodes.destination import Destination
 
-from src.common.custom.util import io_util
+from renpy_analyzer.util import io_util
 
 
 class Wordcloud(Destination):
@@ -26,10 +27,11 @@ class Wordcloud(Destination):
         super().__init__(*args, **kwargs)
         self.mode = 'wordcloud'
 
-        self.allowed_configs.update(["file", "image", "wordcloud", "resize"])
+        self.allowed_configs.update(["file", "image", "frequency_col", "wordcloud", "resize"])
 
         self.file = None
         self.image = None
+        self.frequency_col = None
         self.wordcloud_kwargs = None
         self.resize = None
 
@@ -43,17 +45,27 @@ class Wordcloud(Destination):
         super().compile()
 
         # file: REQUIRED
-        self.error_handler.assert_key_exists_and_type_is(self.config, 'file', str)
-        self.file = self.config['file']
+        if 'file' in self.config:
+            self.error_handler.assert_key_type_is(self.config, 'file', str)
+            self.file = self.config['file']
+        else:
+            self.file = os.path.join(self.earthmover.state_configs['output_dir'], f"{self.name}.png")
 
         # image: REQUIRED
         self.error_handler.assert_key_exists_and_type_is(self.config, 'image', str)
         self.image = self.config['image']
 
+        # frequency_col: REQUIRED
+        self.error_handler.assert_key_exists_and_type_is(self.config, 'frequency_col', str)
+        self.frequency_col = self.config['frequency_col']
+
         # wordcloud: REQUIRED
         if 'wordcloud' in self.config:
             self.error_handler.assert_key_type_is(self.config, 'wordcloud', dict)
         self.wordcloud_kwargs = self.config.get('wordcloud', self.DEFAULT_WORDCLOUD_KWARGS)
+
+        if '__line__' in self.wordcloud_kwargs:
+            del self.wordcloud_kwargs['__line__']
 
         # resize: OPTIONAL
         if 'resize' in self.config:
@@ -72,7 +84,7 @@ class Wordcloud(Destination):
         height, width, _ = image_mask.shape
 
         # Create the wordcloud shaped by the image.
-        _frequencies = self.data.compute().to_dict()
+        _frequencies = self.data.compute().to_dict()[self.frequency_col]
 
         wc = WordCloud(
             mask=image_mask,
@@ -90,7 +102,7 @@ class Wordcloud(Destination):
 
         self.reset_env()  # Wordclouds are memory-hungry
         self.logger.debug(
-            f"@ Wordcloud {self.name} written and environment reset."
+            f"@ Wordcloud {self.name} written to `{self.file}` and environment reset."
         )
 
 

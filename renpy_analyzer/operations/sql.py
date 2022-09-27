@@ -61,7 +61,7 @@ class SqlSelectOperation(Operation):
         alias_mapping = dict(zip(self.alias_list, self.source_data_list))
 
         for _name, _data in alias_mapping.items():
-            exec(f"{_name} = _data")
+            exec(f"{_name} = _data.compute()")
 
         self.data = dd.from_pandas(
             psql.sqldf(self.sql),
