@@ -49,6 +49,7 @@ class OperationRA(Operation):
             'sql_select': sql_operations.SqlSelectOperation,
             'apply_spacy': nlp_operations.ApplySpacyOperation,
             'regexp_replace': regex_operations.RegexReplaceOperation,
+            'regexp_match_groups': regex_operations.RegexMatchGroupOperation,
             'tfidf_frequencies': tfidf_operations.TfIdfOperation,
         }
 

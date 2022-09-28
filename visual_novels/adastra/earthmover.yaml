@@ -1,5 +1,5 @@
 config:
-  output_dir: ./outputs
+  output_dir: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs
   log_level: DEBUG
   show_stacktrace: True
   show_graph: False
@@ -33,6 +33,7 @@ anchors:
 sources:
   adastra:
     file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/adastra.jsonl
+#    file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/adastra_earthmover.jsonl
 
 
 transformations:
@@ -72,7 +73,6 @@ destinations:
   lines_per_character:
     mode: relplot
     source: $transformations.lines_per_character
-#    file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/lines_per_character.png
     relplot:
       <<: *relplot_args
       x: file

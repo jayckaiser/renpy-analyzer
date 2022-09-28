@@ -1,6 +1,8 @@
+import pandas as pd
 import spacy
 
-# from spacytextblob.spacytextblob import SpacyTextBlob
+# This must be added to the namespace to be able to include it as a Spacy pipe.
+from spacytextblob.spacytextblob import SpacyTextBlob
 
 from earthmover.nodes.operation import Operation
 
@@ -38,6 +40,14 @@ class ApplySpacyOperation(Operation):
         :return:
         """
         super().execute()
+
+        self.logger.info(
+            "Applying Spacy NLP. This process takes about a minute to complete."
+        )
+
+        # The dataframe must be brought into memory for the process to work.
+        # TODO: Extract the document col only to limit memory usage.
+        self.data = self.data.compute()
 
         # Build the spacy language model, and add the sentiment pipe.
         nlp = spacy.load('en_core_web_sm')
@@ -97,16 +107,16 @@ class ApplySpacyOperation(Operation):
         ))
 
         # Save the new NLP information as columns.
-        self.data['sentiment'] = sentiment_list
-        self.data['subjectivity'] = subjectivity_list
+        self.data['sentiment'] = pd.Series(sentiment_list)
+        self.data['subjectivity'] = pd.Series(subjectivity_list)
 
-        self.data['sentences'] = sentences_list
-        self.data['num_sentences'] = num_sentences_list
+        self.data['sentences'] = pd.Series(sentences_list)
+        self.data['num_sentences'] = pd.Series(num_sentences_list)
 
-        self.data['words'] = words_list
-        self.data['num_words'] = num_words_list
+        self.data['words'] = pd.Series(words_list)
+        self.data['num_words'] = pd.Series(num_words_list)
 
-        self.data['content_words'] = content_words_list
-        self.data['num_content_words'] = num_content_words_list
+        self.data['content_words'] = pd.Series(content_words_list)
+        self.data['num_content_words'] = pd.Series(num_content_words_list)
 
         return self.data

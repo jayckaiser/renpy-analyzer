@@ -1,5 +1,5 @@
 config:
-  output_dir: ./outputs
+  output_dir: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs
   log_level: DEBUG
   show_stacktrace: True
   show_graph: False
@@ -40,131 +40,71 @@ sources:
       - a3s2.rpy
       - end_game1.rpy
       - end_game2.rpy
-  # columns: [file, line_idx, line]
+  # columns: [file, line_idx, raw]
 
 
 transformations:
 
   clean_text:
     operations:
+      - operation: add_columns
+        source: $sources.adastra
+        columns:
+          line: '{{ raw }}'
+
       # Trim, remove escape characters, replace MC name
       - operation: regexp_replace
         source: $sources.adastra
         column: line
+        trim: True
         replaces:
-          '^[\t]+': ''  # Trim front whitespace
-          '[\t]+$': ''  # Trim back whitespace
           '\\': ''
-          '[mc]': 'Marco'
+          '\[mc\]': 'Marco'
           '{/?i}': '*'  # Clean italics formatting
           '{cps=\d+}': ''  # Clean text-scroll formatting
 
+      - operation: filter_rows
+        source: $transformations.clean_text
+        query: "line == ''"
+        behavior: exclude
+
   categorize_text:
     operations:
-      # Select category
-      - operation: sql_select
-        sources:
-          - $transformations.clean_text
-        aliases:
-          - adastra
-        sql: |
-            select
-              adastra.*,
-              
-              CASE
-                WHEN
-                  text LIKE '#%'
-                  THEN 'renpy_comment'
-                WHEN
-                  text LIKE '$%'
-                  THEN 'renpy_python'
-                WHEN
-                  text = '' OR text ~ '^(ease|hide|jump|label|menu|pause|play|queue|return|scene|scene|show|stop|window|with).*$'
-                  THEN 'renpy_keyword'
-                WHEN
-                  text ~ '^(if|else:).*$'
-                  THEN 'choice_condition'
-                WHEN
-                  text ~ '^([a-z]+) "(.*)"$'
-                  THEN 'dialogue_alias'
-                WHEN
-                  text ~ '^"(.*?)" "(.*)"$'
-                  THEN 'dialogue_name'
-                WHEN
-                  text ~ '^"(".+")"$'
-                  THEN 'dialogue_unspecified'
-                WHEN
-                  text ~ '^"(.+)"$'
-                  THEN 'dialogue_internal'
-                WHEN
-                  text ~ '^"(.+)":$'
-                  THEN 'choice_player'
-                ELSE
-                  'unknown'
-              END AS category
-          
-            FROM adastra
+      - operation: add_columns
+        source: $transformations.clean_text
+        columns:
+          category: 'unknown'
+          speaker: 'speaker_unspecified'
 
-      # Select speaker
-      - operation: sql_select
-        sources:
-          - $transformations.categorize_text
-        aliases:
-          - adastra
-        sql: |
-            select
-              adastra.*,
-              
-              CASE category
-                WHEN 'dialogue_alias'
-                  THEN regexp_match(text, '^([a-z]+) "(.*)"$')[1]
-                WHEN 'dialogue_name'
-                  THEN regexp_match(text, '^"(.*?)" "(.*)"$')[1]
-                WHEN 'dialogue_unspecified'
-                  THEN 'speaker_unspecified'
-                WHEN 'dialogue_internal'
-                  THEN 'internal_narration'
-              END AS speaker
-          
-            FROM adastra
-
-      # Select (spoken) line
-      - operation: sql_select
-        sources:
-          - $transformations.categorize_text
-        aliases:
-          - adastra
-        sql: |
-            select
-              adastra.*,
-              
-              CASE category
-                WHEN 'dialogue_alias'
-                  THEN regexp_match(text, '^([a-z]+) "(.*)"$')[2]
-                WHEN 'dialogue_name'
-                  THEN regexp_match(text, '^"(.*?)" "(.*)"$')[2]
-                WHEN 'dialogue_unspecified'
-                  THEN regexp_match(text, '^"(".+")"$')[1]
-                WHEN 'dialogue_internal'
-                  THEN regexp_match(text, '^"(.+)"$')[1]
-                WHEN 'choice_player'
-                  THEN regexp_match(text, '^"(.+)":$')[1]
-                ELSE text
-              END AS line
-          
-            FROM adastra
-
+      # Select category and collect match groups
+      - operation: regexp_match_groups
+        source: $transformations.categorize_text
+        column: line
+        classification_col: category
+        group_cols:
+          - speaker
+          - line
+        regexes:
+          renpy_comment: '^#.*$'
+          renpy_python: '^$.*$'
+          renpy_keyword: '^(ease|hide|jump|label|menu|pause|play|queue|return|scene|scene|show|stop|window|with).*$'
+          choice_condition: '^(if|else:).*$'
+          dialogue_alias: '^(?P<speaker>[a-z]+) "(?P<line>.*)"$'
+          dialogue_name: '^"(?P<speaker>.*?)" "(?P<line>.*)"$'
+          dialogue_unspecified: '^"(?P<line>".+")"$'
+          dialogue_internal: '^"(?P<line>.+)"$'
+          choice_player: '^"(?P<line>.+)":$'
 
   add_flags:
     operations:
       - operation: add_columns
         source: $transformations.categorize_text
         columns:
-          is_renpy: '{{ category | match("^renpy_.*$") }}'
-          is_choice: '{{ category | match("^choice_.*$") }}'
-          is_read: '{{ category | match("^dialogue_.*$") }}'
+          is_renpy: '{{ category.startswith("renpy_") }}'
+          is_choice: '{{ category.startswith("choice_") }}'
+          is_read: '{{ category.startswith("dialogue_") }}'
           has_speaker: '{{ is_read == true and category != "dialogue_unspecified" and category != "dialogue_internal" }}'
-          is_branch: '{{ (text | match("^    .*$")) and is_choice == false }}'
+          is_branch: '{{ (raw.startswith("    ")) and is_choice == false }}'
 
   conform_speaker:
     operations:
@@ -184,11 +124,6 @@ transformations:
           mon: monitor
           sc: scipio
           me: meera
-
-      - operation: modify_columns
-        source: $transformations.conform_speaker
-        columns:
-          speaker: '{{ value | lower }}'
 
   add_nlp:
     operations:

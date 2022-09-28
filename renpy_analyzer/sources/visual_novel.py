@@ -13,6 +13,8 @@ class RenpyVisualNovel(Source):
     """
     CHUNKSIZE = 1024 * 1024 * 100  # 100 MB
 
+    OUTPUT_COLS = ('file', 'line_idx', 'raw')
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.mode = 'renpy_visual_novel'
@@ -65,7 +67,7 @@ class RenpyVisualNovel(Source):
                 rows.append( [file, line_idx, line] )
 
             _dataframe = dd.from_pandas(
-                pd.DataFrame(rows, columns=['file', 'line_idx', 'line']),
+                pd.DataFrame(rows, columns=self.OUTPUT_COLS),
                 chunksize=self.CHUNKSIZE
             )
             dataframes.append(_dataframe)
