@@ -32,8 +32,8 @@ anchors:
 
 sources:
   adastra:
-    file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/adastra.jsonl
-#    file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/adastra_earthmover.jsonl
+#    file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/adastra.jsonl
+    file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/adastra_earthmover_nlp.jsonl
 
 
 transformations:
@@ -46,26 +46,46 @@ transformations:
           - adastra
         sql: |
             select
-                file, speaker,
+                str_split(file, '/')[-1] as file,
+                speaker,
                 count(*) as num_lines
             from adastra
+            where is_read
             group by 1, 2
+            having num_lines > 10
             order by 1, 2
 
-  amicus_frequencies:
+#  amicus_frequencies:
+#    operations:
+#      - operation: filter_rows
+#        source: $sources.adastra
+#        query: "is_read == True and speaker == 'amicus'"
+#        behavior: include
+#
+#      - operation: tfidf_frequencies
+#        source: $transformations.amicus_frequencies
+#        document_col: content_words
+#        frequency_col: frequencies
+#        tfidfvectorizer:
+#          stop_words: 'english'
+#          ngram_range: [1, 1]
+#          max_df: 0.3
+#          min_df: 5
+
+  neferu_frequencies:
     operations:
       - operation: filter_rows
         source: $sources.adastra
-        query: "is_read == True and speaker == 'amicus'"
+        query: "is_read == True and speaker == 'neferu'"
         behavior: include
 
       - operation: tfidf_frequencies
-        source: $transformations.amicus_frequencies
+        source: $transformations.neferu_frequencies
         document_col: content_words
         frequency_col: frequencies
         tfidfvectorizer:
           stop_words: 'english'
-          ngram_range: [1, 1]
+          ngram_range: [ 1, 1 ]
           max_df: 0.3
           min_df: 5
 
@@ -78,10 +98,20 @@ destinations:
       x: file
       y: num_lines
 
-  amicus:
+#  amicus:
+#    mode: wordcloud
+#    source: $transformations.amicus_frequencies
+#    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/sprites/amicus/amicus.png
+#    frequency_col: frequencies
+#    wordcloud:
+#      <<: *wordcloud_args
+#      contour_width: 1
+#      contour_color: white
+
+  neferu:
     mode: wordcloud
-    source: $transformations.amicus_frequencies
-    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/sprites/amicus/amicus.png
+    source: $transformations.neferu_frequencies
+    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/sprites/neferu/neferu.png
     frequency_col: frequencies
     wordcloud:
       <<: *wordcloud_args

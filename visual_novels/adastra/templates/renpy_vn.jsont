@@ -4,10 +4,10 @@
     "category": {{category | tojson}},
     "speaker": {{speaker | tojson}},
     "line": {{line | tojson}},
-    "is_renpy": {{is_renpy}},
-    "is_choice": {{is_choice}},
-    "is_read": {{is_read}},
-    "has_speaker": {{has_speaker}},
-    "is_branch": {{is_branch}},
+    "is_renpy": {{is_renpy | lower}},
+    "is_choice": {{is_choice | lower}},
+    "is_read": {{is_read | lower}},
+    "has_speaker": {{has_speaker | lower}},
+    "is_branch": {{is_branch | lower}},
     "raw": {{raw | tojson}}
 }

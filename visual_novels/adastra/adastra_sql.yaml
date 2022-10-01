@@ -47,29 +47,29 @@ transformations:
 
   clean_text:
     operations:
-      - operation: sql_select
-        sources:
-          - $sources.adastra
-        aliases:
-          - adastra
-        sql: |
-          select *,
-          
-              regexp_replace(
-                regexp_replace(
-                  replace(
-                    replace(
-                      regexp_replace(
-                        trim(raw),
-                        '\n', ''),
-                    '\\', ''),
-                  '[mc]', 'Marco'),
-                '{/?i}', '*'),
-              '{cps=\d+}', '') as line
-          
-          from adastra
-          where line != ''
-    # TODO: Maybe this is not the right approach.
+      - operation: add_columns
+        source: $sources.adastra
+        columns:
+          line: '{{ raw }}'
+
+      # Trim, remove escape characters, replace MC name
+      - operation: regexp_replace
+        source: $sources.adastra
+        column: line
+        trim: True
+        replaces:
+          '\\': ''
+          '\[mc\]': 'Marco'
+          '{/?i}': '*'     # Clean italics formatting
+          '{cps=\d+}': ''  # Clean text-scroll formatting
+          '\u0027': "'"    # Replace apostrophes
+          '\u2014': '--'   # Replace em-dashes
+
+
+      - operation: filter_rows
+        source: $transformations.clean_text
+        query: "line == ''"
+        behavior: exclude
 
   categorize_text:
     operations:
@@ -127,7 +127,7 @@ transformations:
           select
             adastra.*,
           
-            CASE category
+            LOWER(CASE category
               WHEN 'dialogue_alias'
                 THEN regexp_extract(line, '^([a-z]+) "(.*)"$', 1)
               WHEN 'dialogue_name'
@@ -136,7 +136,7 @@ transformations:
                 THEN 'speaker_unspecified'
               WHEN 'dialogue_internal'
                 THEN 'internal_narration'
-            END AS speaker
+            END) AS speaker
           
           FROM adastra
 
@@ -169,14 +169,20 @@ transformations:
 
   add_flags:
     operations:
-      - operation: add_columns
-        source: $transformations.categorize_text
-        columns:
-          is_renpy: '{{ category.startswith("renpy_") }}'
-          is_choice: '{{ category.startswith("choice_") }}'
-          is_read: '{{ category.startswith("dialogue_") }}'
-          has_speaker: '{{ is_read == true and category != "dialogue_unspecified" and category != "dialogue_internal" }}'
-          is_branch: '{{ (raw.startswith("    ")) and is_choice == false }}'
+      - operation: sql_select
+        sources:
+          - $transformations.categorize_text
+        aliases:
+          - adastra
+        sql: |
+            select *,
+                category LIKE 'renpy_%' as is_renpy,
+                category LIKE 'choice_%' as is_choice,
+                category LIKE 'dialogue_%' as is_read,
+                category IN ('dialogue_name', 'dialogue_alias') as has_speaker,
+                (raw LIKE '    %' and not category like 'choice_%') as is_branch
+          
+            from adastra
 
   conform_speaker:
     operations:
@@ -197,11 +203,11 @@ transformations:
           sc: scipio
           me: meera
 
-#  add_nlp:
-#    operations:
-#      - operation: apply_spacy
-#        source: $transformations.conform_speaker
-#        document_col: line
+  add_nlp:
+    operations:
+      - operation: apply_spacy
+        source: $transformations.conform_speaker
+        document_col: line
 
 
 destinations:
@@ -211,8 +217,8 @@ destinations:
     extension: jsonl
     linearize: True
 
-#  adastra_earthmover_nlp:
-#    source: $transformations.add_nlp
-#    template: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/templates/renpy_vn_nlp.jsont
-#    extension: jsonl
-#    linearize: True
+  adastra_earthmover_nlp:
+    source: $transformations.add_nlp
+    template: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/templates/renpy_vn_nlp.jsont
+    extension: jsonl
+    linearize: True
