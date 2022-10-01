@@ -119,4 +119,5 @@ class ApplySpacyOperation(Operation):
         self.data['content_words'] = pd.Series(content_words_list)
         self.data['num_content_words'] = pd.Series(num_content_words_list)
 
+        self.force_dask()
         return self.data

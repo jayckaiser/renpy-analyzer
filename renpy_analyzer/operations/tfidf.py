@@ -13,8 +13,6 @@ class TfIdfOperation(Operation):
     """
 
     """
-    CHUNKSIZE = 1024 * 1024 * 100  # 100 MB
-
     DEFAULT_TFIDFVECTORIZER_KWARGS = {
 
     }
@@ -67,13 +65,11 @@ class TfIdfOperation(Operation):
         vectorizer = TfidfVectorizer(**self.tfidfvectorizer_kwargs)
 
         # Get the term frequencies and document frequencies.
-        self.data = dd.from_pandas(
-            pd.DataFrame(
-                vectorizer.fit_transform(corpus).todense().tolist(),
-                columns=vectorizer.get_feature_names_out()
-            ).T.sum(axis=1).to_frame(name=self.frequency_col),
-            chunksize=self.CHUNKSIZE
-        )
+        self.data = pd.DataFrame(
+            vectorizer.fit_transform(corpus).todense().tolist(),
+            columns=vectorizer.get_feature_names_out()
+        ).T.sum(axis=1).to_frame(name=self.frequency_col)
+        self.force_dask()
 
         return self.data
 

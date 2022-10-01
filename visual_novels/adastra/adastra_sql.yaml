@@ -1,0 +1,218 @@
+config:
+  output_dir: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs
+  log_level: DEBUG
+  show_stacktrace: True
+  show_graph: False
+
+custom_nodes:
+  sources:
+    - ['renpy_analyzer.nodes', 'SourceRA']
+  operations:
+    - ['renpy_analyzer.nodes', 'OperationRA']
+  destinations:
+    - ['renpy_analyzer.nodes', 'DestinationRA']
+
+
+anchors:
+  renpy_keywords: &renpy_keywords [
+    ease, hide, jump, label, menu,
+    pause, play, queue, return, scene,
+    scene, show, stop, window, with,
+  ]
+
+
+sources:
+  adastra:
+    mode: renpy_visual_novel
+    game_dir: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game
+    script_files:
+      - a1s1.rpy
+      - a1s2.rpy
+      - a1s3.rpy
+      - a1s4.rpy
+      - a1s5.rpy
+      - a1s6.rpy
+      - a1s7.rpy
+      - a2s1.rpy
+      - a2s2.rpy
+      - a2s3.rpy
+      - a3s1.rpy
+      - a3s2.rpy
+      - end_game1.rpy
+      - end_game2.rpy
+  # columns: [file, line_idx, raw]
+
+
+transformations:
+
+  clean_text:
+    operations:
+      - operation: sql_select
+        sources:
+          - $sources.adastra
+        aliases:
+          - adastra
+        sql: |
+          select *,
+          
+              regexp_replace(
+                regexp_replace(
+                  replace(
+                    replace(
+                      regexp_replace(
+                        trim(raw),
+                        '\n', ''),
+                    '\\', ''),
+                  '[mc]', 'Marco'),
+                '{/?i}', '*'),
+              '{cps=\d+}', '') as line
+          
+          from adastra
+          where line != ''
+    # TODO: Maybe this is not the right approach.
+
+  categorize_text:
+    operations:
+      # Select category
+      - operation: sql_select
+        sources:
+          - $transformations.clean_text
+        aliases:
+          - adastra
+        sql: |
+          select
+            adastra.*,
+          
+            CASE
+              WHEN
+                line LIKE '#%'
+                THEN 'renpy_comment'
+              WHEN
+                line LIKE '$%'
+                THEN 'renpy_python'
+              WHEN
+                line = '' OR regexp_full_match(line, '(ease|hide|jump|label|menu|pause|play|queue|return|scene|scene|show|stop|window|with).*')
+                THEN 'renpy_keyword'
+              WHEN
+                regexp_full_match(line, '(if|else:).*')
+                THEN 'choice_condition'
+              WHEN
+                regexp_full_match(line, '([a-z]+) "(.*)"')
+                THEN 'dialogue_alias'
+              WHEN
+                regexp_full_match(line, '"(.*?)" "(.*)"')
+                THEN 'dialogue_name'
+              WHEN
+                regexp_full_match(line, '"(".+")"')
+                THEN 'dialogue_unspecified'
+              WHEN
+                regexp_full_match(line, '"(.+)"')
+                THEN 'dialogue_internal'
+              WHEN
+                regexp_full_match(line, '"(.+)":')
+                THEN 'choice_player'
+              ELSE
+                'unknown'
+            END AS category
+          
+          FROM adastra
+
+      # Select speaker
+      - operation: sql_select
+        sources:
+          - $transformations.categorize_text
+        aliases:
+          - adastra
+        sql: |
+          select
+            adastra.*,
+          
+            CASE category
+              WHEN 'dialogue_alias'
+                THEN regexp_extract(line, '^([a-z]+) "(.*)"$', 1)
+              WHEN 'dialogue_name'
+                THEN regexp_extract(line, '^"(.*?)" "(.*)"$', 1)
+              WHEN 'dialogue_unspecified'
+                THEN 'speaker_unspecified'
+              WHEN 'dialogue_internal'
+                THEN 'internal_narration'
+            END AS speaker
+          
+          FROM adastra
+
+      # Select (spoken) line
+      - operation: sql_select
+        sources:
+          - $transformations.categorize_text
+        aliases:
+          - adastra
+        sql: |
+          select
+            adastra.*
+          
+            REPLACE 
+            (CASE category
+              WHEN 'dialogue_alias'
+                THEN regexp_extract(line, '^([a-z]+) "(.*)"$', 2)
+              WHEN 'dialogue_name'
+                THEN regexp_extract(line, '^"(.*?)" "(.*)"$', 2)
+              WHEN 'dialogue_unspecified'
+                THEN regexp_extract(line, '^"(".+")"$', 1)
+              WHEN 'dialogue_internal'
+                THEN regexp_extract(line, '^"(.+)"$', 1)
+              WHEN 'choice_player'
+                THEN regexp_extract(line, '^"(.+)":$', 1)
+              ELSE line
+            END AS line)
+          
+          FROM adastra
+
+  add_flags:
+    operations:
+      - operation: add_columns
+        source: $transformations.categorize_text
+        columns:
+          is_renpy: '{{ category.startswith("renpy_") }}'
+          is_choice: '{{ category.startswith("choice_") }}'
+          is_read: '{{ category.startswith("dialogue_") }}'
+          has_speaker: '{{ is_read == true and category != "dialogue_unspecified" and category != "dialogue_internal" }}'
+          is_branch: '{{ (raw.startswith("    ")) and is_choice == false }}'
+
+  conform_speaker:
+    operations:
+      - operation: map_values
+        source: $transformations.add_flags
+        column: speaker
+        mapping:
+          a: amicus
+          m: marco
+          unk: ?????
+          com: computer
+          c: cassius
+          ca: cato
+          al: alexios
+          v: virginia
+          n: neferu
+          mon: monitor
+          sc: scipio
+          me: meera
+
+#  add_nlp:
+#    operations:
+#      - operation: apply_spacy
+#        source: $transformations.conform_speaker
+#        document_col: line
+
+
+destinations:
+  adastra_earthmover:
+    source: $transformations.conform_speaker
+    template: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/templates/renpy_vn.jsont
+    extension: jsonl
+    linearize: True
+
+#  adastra_earthmover_nlp:
+#    source: $transformations.add_nlp
+#    template: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/templates/renpy_vn_nlp.jsont
+#    extension: jsonl
+#    linearize: True

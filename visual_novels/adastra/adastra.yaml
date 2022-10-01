@@ -60,8 +60,10 @@ transformations:
         replaces:
           '\\': ''
           '\[mc\]': 'Marco'
-          '{/?i}': '*'  # Clean italics formatting
+          '{/?i}': '*'     # Clean italics formatting
           '{cps=\d+}': ''  # Clean text-scroll formatting
+          '\u0027': "'"    # Replace apostrophes
+          '\u2014': '--'   # Replace em-dashes
 
       - operation: filter_rows
         source: $transformations.clean_text
@@ -125,11 +127,11 @@ transformations:
           sc: scipio
           me: meera
 
-  add_nlp:
-    operations:
-      - operation: apply_spacy
-        source: $transformations.conform_speaker
-        document_col: line
+#  add_nlp:
+#    operations:
+#      - operation: apply_spacy
+#        source: $transformations.conform_speaker
+#        document_col: line
 
 
 destinations:
@@ -139,8 +141,8 @@ destinations:
     extension: jsonl
     linearize: True
 
-  adastra_earthmover_nlp:
-    source: $transformations.add_nlp
-    template: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/templates/renpy_vn_nlp.jsont
-    extension: jsonl
-    linearize: True
+#  adastra_earthmover_nlp:
+#    source: $transformations.add_nlp
+#    template: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/templates/renpy_vn_nlp.jsont
+#    extension: jsonl
+#    linearize: True
