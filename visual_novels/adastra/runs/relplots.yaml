@@ -1,0 +1,163 @@
+config:
+  output_dir: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/relplots
+  state_file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/.earthmover.csv
+  log_level: DEBUG
+  show_stacktrace: True
+  show_graph: False
+
+custom_nodes:
+  sources:
+    - ['renpy_analyzer.nodes', 'SourceRA']
+  operations:
+    - ['renpy_analyzer.nodes', 'OperationRA']
+  destinations:
+    - ['renpy_analyzer.nodes', 'DestinationRA']
+
+anchors:
+  adastra_game_dir: &adastra_base_dir /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game
+
+  default_relplot_args: &relplot_args
+    hue: speaker
+    kind: line
+    palette:
+      alexios:  '#65ca68'
+      amicus:   '#ff3333'
+      cassius:  '#FFFFFF'
+      cato:     '#7a7a7a'
+      marco:    '#0000FF'
+      neferu:   '#ffcc00'
+      virginia: '#8e389c'
+
+
+sources:
+  adastra:
+#    file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/adastra.jsonl
+    file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/adastra_earthmover_nlp.jsonl
+
+  speaker_colors:
+    file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/speaker_colors.csv
+
+
+transformations:
+  characters_filter:
+    operations:
+      - operation: sql_select
+        sources:
+          - $sources.adastra
+          - $sources.speaker_colors
+        aliases:
+          - adastra
+          - speaker_colors
+        sql: |
+          select adastra.*,
+              sc.color
+          from adastra
+              inner join speaker_colors as sc
+              on adastra.speaker = sc.speaker
+
+  group_by_file:
+    operations:
+      - operation: sql_select
+        sources:
+          - $transformations.characters_filter
+        aliases:
+          - adastra
+        sql: |
+            select
+                str_split(file, '/')[-1] as file,
+                count(*) as num_lines,
+                sum(num_words) as num_words,
+                avg(sentiment) as avg_sentiment
+            from adastra
+            group by 1
+            order by 1
+
+  group_by_file_speaker:
+    operations:
+      - operation: sql_select
+        sources:
+          - $transformations.characters_filter
+        aliases:
+          - adastra
+        sql: |
+            select
+                str_split(file, '/')[-1] as file,
+                speaker,
+                count(*) as num_lines,
+                sum(num_words) as num_words,
+                avg(sentiment) as avg_sentiment
+            from adastra
+            group by 1, 2
+            order by 1, 2
+
+  proportion_by_file_speaker:
+    operations:
+      - operation: sql_select
+        sources:
+          - $transformations.group_by_file_speaker
+          - $transformations.group_by_file
+        aliases:
+          - bfs
+          - bf
+        sql: |
+            select
+                bfs.file,
+                bfs.speaker,
+                bfs.num_lines / bf.num_lines::float as num_lines,
+                bfs.num_words / bf.num_words::float as num_words,
+                bfs.avg_sentiment / bf.avg_sentiment::float as avg_sentiment
+            from bfs
+                inner join bf
+                on bfs.file = bf.file
+          
+
+destinations:
+  # TODO: Can palette be a dataframe or inferred from column?
+#  lines_per_character:
+#    mode: relplot
+#    source: $transformations.group_by_file_speaker
+#    relplot:
+#      <<: *relplot_args
+#      x: file
+#      y: num_lines
+#
+#  lines_per_character_proportion:
+#    mode: relplot
+#    source: $transformations.proportion_by_file_speaker
+#    relplot:
+#      <<: *relplot_args
+#      x: file
+#      y: num_lines
+
+#  words_per_character:
+#    mode: relplot
+#    source: $transformations.group_by_file_speaker
+#    relplot:
+#      <<: *relplot_args
+#      x: file
+#      y: num_words
+#
+#  words_per_character_proportion:
+#    mode: relplot
+#    source: $transformations.proportion_by_file_speaker
+#    relplot:
+#      <<: *relplot_args
+#      x: file
+#      y: num_words
+
+#  avg_sentiment_per_character:
+#    mode: relplot
+#    source: $transformations.group_by_file_speaker
+#    relplot:
+#      <<: *relplot_args
+#      x: file
+#      y: avg_sentiment
+#
+#  avg_sentiment_per_character_proportion:
+#    mode: relplot
+#    source: $transformations.proportion_by_file_speaker
+#    relplot:
+#      <<: *relplot_args
+#      x: file
+#      y: avg_sentiment
+

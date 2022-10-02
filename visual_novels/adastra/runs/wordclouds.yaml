@@ -1,0 +1,117 @@
+config:
+  output_dir: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/wordclouds
+  state_file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/.earthmover.csv
+  log_level: DEBUG
+  show_stacktrace: True
+  show_graph: False
+
+custom_nodes:
+  sources:
+    - ['renpy_analyzer.nodes', 'SourceRA']
+  operations:
+    - ['renpy_analyzer.nodes', 'OperationRA']
+  destinations:
+    - ['renpy_analyzer.nodes', 'DestinationRA']
+
+anchors:
+  adastra_game_dir: &adastra_base_dir /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game
+
+  default_wordcloud_args: &wordcloud_args
+    font_path: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/RobotoSlab-Medium.ttf
+    max_words: 4000
+    max_font_size: 16
+    mode: RGB
+    background_color: black
+    repeat: True
+#    relative_scaling: 0.3
+    random_state: 42
+
+
+sources:
+  adastra:
+#    file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/adastra.jsonl
+    file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/adastra_earthmover_nlp.jsonl
+
+
+transformations:
+
+  amicus_frequencies:
+    operations:
+      - operation: filter_rows
+        source: $sources.adastra
+        query: "is_read == True and speaker == 'amicus'"
+        behavior: include
+
+      - operation: tfidf_frequencies
+        source: $transformations.amicus_frequencies
+        document_col: content_words
+        frequency_col: frequencies
+        tfidfvectorizer:
+          stop_words: 'english'
+          ngram_range: [1, 1]
+          max_df: 0.3
+          min_df: 5
+
+  neferu_frequencies:
+    operations:
+      - operation: filter_rows
+        source: $sources.adastra
+        query: "is_read == True and speaker == 'neferu'"
+        behavior: include
+
+      - operation: tfidf_frequencies
+        source: $transformations.neferu_frequencies
+        document_col: content_words
+        frequency_col: frequencies
+        tfidfvectorizer:
+          stop_words: 'english'
+          ngram_range: [ 1, 1 ]
+          max_df: 0.3
+          min_df: 5
+
+  branched_adastra_marco_frequencies:
+    operations:
+      - operation: filter_rows
+        source: $sources.adastra
+        query: "speaker.isin(['amicus', 'marco', 'internal_narration']) and is_branch"
+        behavior: include
+
+      - operation: tfidf_frequencies
+        source: $transformations.branched_adastra_marco_frequencies
+        document_col: content_words
+        frequency_col: frequencies
+        tfidfvectorizer:
+          stop_words: 'english'
+          ngram_range: [ 1, 1 ]
+          max_df: 0.3
+          min_df: 5
+
+destinations:
+
+  amicus:
+    mode: wordcloud
+    source: $transformations.amicus_frequencies
+    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/sprites/amicus/amicus.png
+    frequency_col: frequencies
+    wordcloud:
+      <<: *wordcloud_args
+      contour_width: 1
+      contour_color: white
+
+  neferu:
+    mode: wordcloud
+    source: $transformations.neferu_frequencies
+    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/sprites/neferu/neferu.png
+    frequency_col: frequencies
+    wordcloud:
+      <<: *wordcloud_args
+      contour_width: 1
+      contour_color: white
+
+  amiscene1:
+    mode: wordcloud
+    source: $transformations.branched_adastra_marco_frequencies
+    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/illustrations/amiscene1.png
+    frequency_col: frequencies
+    wordcloud:
+      <<: *wordcloud_args
