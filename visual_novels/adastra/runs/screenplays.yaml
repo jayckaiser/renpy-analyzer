@@ -1,0 +1,177 @@
+config:
+  output_dir: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/screenplays
+  state_file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/.earthmover.csv
+  log_level: DEBUG
+  show_stacktrace: True
+  show_graph: False
+
+custom_nodes:
+  sources:
+    - ['renpy_analyzer.nodes', 'SourceRA']
+  operations:
+    - ['renpy_analyzer.nodes', 'OperationRA']
+  destinations:
+    - ['renpy_analyzer.nodes', 'DestinationRA']
+
+anchors:
+  adastra_game_dir: &adastra_base_dir /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game
+
+
+sources:
+  adastra:
+#    file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/adastra.jsonl
+    file: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/outputs/adastra_earthmover_nlp.jsonl
+
+
+transformations:
+  filter_base_lines:
+    operations:
+      - operation: sql_select
+        sources:
+          - $sources.adastra
+        aliases:
+          - adastra
+        sql: |
+            select
+                str_split(file, '/')[-1] as file,
+                line_idx,
+                has_speaker,
+                is_choice,
+                is_branch,
+                speaker,
+                line
+            from adastra
+            where is_read or is_choice
+
+  format_screenplay_style1:
+    operations:
+      - operation: sql_select
+        sources:
+          - $transformations.filter_base_lines
+        aliases:
+          - adastra
+        sql: |
+            select *,
+              case
+                -- Player/game choice between branches
+                when is_choice
+                  then format('[{}]', line)
+          
+                -- Spoken dialogue in branch
+                when is_branch and has_speaker
+                  then format('        {}\n  {}', upper(speaker), line)
+          
+                -- Internal or unspecified narration in branch
+                when is_branch and not has_speaker
+                  then format('        {}', line)
+                  
+                -- Spoken dialogue
+                when not is_branch and has_speaker
+                  then format('{}\n  {}', upper(speaker), line)
+          
+                -- Internal or unspecified narration
+                when not is_branch and not has_speaker
+                  then line
+          
+                else null
+              end as screenplay
+          
+            from adastra
+            where screenplay is not null
+
+  format_screenplay_style2:
+    operations:
+      - operation: sql_select
+        sources:
+          - $transformations.filter_base_lines
+        aliases:
+          - adastra
+        sql: |
+            select *,
+              case
+                -- Player/game choice between branches
+                when is_choice
+                  then format('[BRANCH]: {}', line)
+          
+                -- Spoken dialogue in branch
+                when is_branch and has_speaker
+                  then format('    {}: {}', upper(speaker), line)
+          
+                -- Internal or unspecified narration in branch
+                when is_branch and not has_speaker
+                  then format('    {}', line)
+                  
+                -- Spoken dialogue
+                when not is_branch and has_speaker
+                  then format('{}: {}', upper(speaker), line)
+          
+                -- Internal or unspecified narration
+                when not is_branch and not has_speaker
+                  then line
+          
+                else null
+              end as screenplay
+          
+            from adastra
+            where screenplay is not null
+
+  format_screenplay_style3:
+    operations:
+      - operation: sql_select
+        sources:
+          - $transformations.filter_base_lines
+        aliases:
+          - adastra
+        sql: |
+            select *,
+              case
+                -- Player/game choice between branches
+                when is_choice
+                  then format('[BRANCH]: {}', line)
+          
+                -- Spoken dialogue
+                when has_speaker
+                  then format('               {}\n{}', upper(speaker), line)
+          
+                -- Internal narration
+                when not has_speaker and speaker = 'internal_narration'
+                  then line
+                  
+                -- Unspecified narration
+                when not has_speaker and speaker = 'speaker_unspecified'
+                  then format('               {}', line)
+          
+                else null
+              end as screenplay
+          
+            from adastra
+
+      # Add bars separating branches
+      - operation: sql_select
+        sources:
+          - $transformations.format_screenplay_style3
+        aliases:
+          - adastra
+        sql: |
+            select *,
+            
+                REPLACE(
+                  case
+                    when not is_branch and lag(is_branch, 1) over (partition by file order by line_idx)
+                      then format('----------\n{}', screenplay)
+                    else screenplay
+                  end as screenplay
+                )
+          
+            from adastra
+            where screenplay is not null
+            
+
+destinations:
+  screenplay_style1:
+    mode: 'screenplay'
+    source: $transformations.format_screenplay_style1
+    file_col: file
+    screenplay_col: screenplay
+    justify: 75
+    line_sep: '\n\n'
