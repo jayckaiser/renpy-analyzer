@@ -55,6 +55,12 @@ class Wordcloud(Destination):
         self.error_handler.assert_key_exists_and_type_is(self.config, 'image', str)
         self.image = self.config['image']
 
+        if not os.path.exists(self.image):
+            self.error_handler.throw(
+                f"Specified image path not found: {self.image}"
+            )
+            raise
+
         # frequency_col: REQUIRED
         self.error_handler.assert_key_exists_and_type_is(self.config, 'frequency_col', str)
         self.frequency_col = self.config['frequency_col']
