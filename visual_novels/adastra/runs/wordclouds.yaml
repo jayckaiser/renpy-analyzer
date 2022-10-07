@@ -35,6 +35,23 @@ sources:
 
 transformations:
 
+  adastra_frequencies:
+    operations:
+      - operation: filter_rows
+        source: $sources.adastra
+        query: "is_read == True"
+        behavior: include
+
+      - operation: tfidf_frequencies
+        source: $transformations.adastra_frequencies
+        document_col: content_words
+        frequency_col: frequencies
+        tfidfvectorizer:
+          stop_words: 'english'
+          ngram_range: [ 1, 1 ]
+          max_df: 0.3
+          min_df: 5
+
   amicus_frequencies:
     operations:
       - operation: filter_rows
@@ -86,32 +103,146 @@ transformations:
           max_df: 0.3
           min_df: 5
 
+  alex_cassius_frequencies:
+    operations:
+      - operation: filter_rows
+        source: $sources.adastra
+        query: "speaker.isin(['alexios', 'cassius'])"
+        behavior: include
+
+      - operation: tfidf_frequencies
+        source: $transformations.alex_cassius_frequencies
+        document_col: content_words
+        frequency_col: frequencies
+        tfidfvectorizer:
+          stop_words: 'english'
+          ngram_range: [ 1, 1 ]
+          max_df: 0.3
+          min_df: 5
+
+  amicus_neferu_frequencies:
+    operations:
+      - operation: filter_rows
+        source: $sources.adastra
+        query: "speaker.isin(['amicus', 'neferu'])"
+        behavior: include
+
+      - operation: tfidf_frequencies
+        source: $transformations.amicus_neferu_frequencies
+        document_col: content_words
+        frequency_col: frequencies
+        tfidfvectorizer:
+          stop_words: 'english'
+          ngram_range: [ 1, 1 ]
+          max_df: 0.3
+          min_df: 5
+
 destinations:
 
-  amicus:
+#  amicus:
+#    mode: wordcloud
+#    source: $transformations.amicus_frequencies
+#    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/sprites/amicus/amicus.png
+#    frequency_col: frequencies
+#    wordcloud:
+#      <<: *wordcloud_args
+#      contour_width: 1
+#      contour_color: white
+
+#  neferu:
+#    mode: wordcloud
+#    source: $transformations.neferu_frequencies
+#    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/sprites/neferu/neferu.png
+#    frequency_col: frequencies
+#    wordcloud:
+#      <<: *wordcloud_args
+#      contour_width: 1
+#      contour_color: white
+
+#  amiscene1:
+#    mode: wordcloud
+#    source: $transformations.branched_adastra_marco_frequencies
+#    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/illustrations/amiscene1.png
+#    frequency_col: frequencies
+#    wordcloud:
+#      <<: *wordcloud_args
+
+#  ss1:
+#    mode: wordcloud
+#    source: $transformations.branched_adastra_marco_frequencies
+#    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/illustrations/ss1.png
+#    frequency_col: frequencies
+#    wordcloud:
+#      <<: *wordcloud_args
+
+#  ss3:
+#    mode: wordcloud
+#    source: $transformations.branched_adastra_marco_frequencies
+#    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/illustrations/ss3.png
+#    frequency_col: frequencies
+#    wordcloud:
+#      <<: *wordcloud_args
+
+#  2ss:
+#    mode: wordcloud
+#    source: $transformations.branched_adastra_marco_frequencies
+#    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/illustrations/2ss.png
+#    frequency_col: frequencies
+#    wordcloud:
+#      <<: *wordcloud_args
+
+#  2ss3:
+#    mode: wordcloud
+#    source: $transformations.branched_adastra_marco_frequencies
+#    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/illustrations/2ss3.png
+#    frequency_col: frequencies
+#    wordcloud:
+#      <<: *wordcloud_args
+
+#  alexandcassiuskiss:
+#    mode: wordcloud
+#    source: $transformations.alex_cassius_frequencies
+#    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/illustrations/alexandcassiuskiss.PNG
+#    frequency_col: frequencies
+#    wordcloud:
+#      <<: *wordcloud_args
+
+  amicusandneferu1:
     mode: wordcloud
-    source: $transformations.amicus_frequencies
-    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/sprites/amicus/amicus.png
+    source: $transformations.amicus_neferu_frequencies
+    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/illustrations/amicusandneferu1.png
     frequency_col: frequencies
     wordcloud:
       <<: *wordcloud_args
-      contour_width: 1
-      contour_color: white
 
-  neferu:
+  amicusandneferu2:
     mode: wordcloud
-    source: $transformations.neferu_frequencies
-    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/sprites/neferu/neferu.png
+    source: $transformations.amicus_neferu_frequencies
+    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/illustrations/amicusandneferu2.png
     frequency_col: frequencies
     wordcloud:
       <<: *wordcloud_args
-      contour_width: 1
-      contour_color: white
 
-  amiscene1:
+#  dinner3:
+#    mode: wordcloud
+#    source: $transformations.amicus_frequencies
+#    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/illustrations/dinner3.PNG
+#    frequency_col: frequencies
+#    wordcloud:
+#      <<: *wordcloud_args
+
+  adastra:
     mode: wordcloud
-    source: $transformations.branched_adastra_marco_frequencies
-    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/illustrations/amiscene1.png
+    source: $transformations.adastra_frequencies
+    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/illustrations/adastra.png
+    frequency_col: frequencies
+    wordcloud:
+      <<: *wordcloud_args
+
+  amicusend:
+    mode: wordcloud
+    source: $transformations.adastra_frequencies
+    image: /home/jayckaiser/code/renpy-analyzer/visual_novels/adastra/game/images/illustrations/amicusend.png
     frequency_col: frequencies
     wordcloud:
       <<: *wordcloud_args
